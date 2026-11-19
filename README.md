@@ -1,54 +1,42 @@
 # DeckLink
 
-A lightweight Stream Deck-style dashboard for controlling a PC from a phone or tablet on the same local network. The host uses Python's standard library; the web client is plain HTML, CSS, and JavaScript designed to stay usable on older Android browsers.
+A lightweight PC dashboard for an Android phone or tablet on the same local network. The Python host uses the standard library; the web interface is plain HTML, CSS, and JavaScript for older Android browsers.
 
-**Working title only:** DeckLink is a temporary project name. Check GitHub, domain, and trademark availability before publishing under it.
-
-## What is included
-
-- Live CPU, memory, system disk, and network transfer stats
-- Responsive dark touch interface and connection status
-- Pairing token required for stats and action requests
-- Configurable buttons for opening URLs and launching configured apps
-- No shell command or executable can be sent by the browser
+**Working title only:** DeckLink is temporary. Check GitHub, domain, and trademark availability before publishing under this name.
 
 ## Start on Windows
 
-1. Install Python 3.9 or newer and extract/clone this folder somewhere convenient.
-2. Double-click `start.bat`. The first run creates a pairing token in `config.json` and opens the dashboard on this PC.
-3. On your tablet, connect to the same Wi-Fi and open the full address shown in the DeckLink window. The address includes the pairing token. If prompted by Windows Firewall, allow Python on **Private networks** so your tablet can connect.
-4. Keep the DeckLink window open while using the dashboard. Press Ctrl+C there to stop it.
+1. Install Python 3.9 or newer.
+2. Double-click `manage.bat` to open the native desktop manager. Use **Start host** to run DeckLink and open the dashboard. The host window shows the tablet link and pairing token.
+3. On your tablet, connect to the same Wi-Fi and open the pairing link shown by the manager or host window. Allow Python through Windows Firewall on **Private networks** if prompted.
+4. Leave the host running while using the dashboard. Stop it in the manager or press Ctrl+C in the host window.
 
-You can also run `python host.py --no-open` to start without opening a browser, or `python host.py --port 8765` to choose a port.
+You can also double-click `start.bat` to run the host without the manager, or run `python host.py --no-open` / `python host.py --port 8765`.
 
-## Add or edit buttons
+## Dashboard
 
-Edit `config.json` while DeckLink is stopped, then start it again. IDs must be unique. Supported action forms:
+- CPU, memory, disk, and network stat cards on the left side of desktop layouts
+- Select a stat card to show its live history graph; CPU is selected by default, and the graph switches to the selected metric
+- Shortcut panel on the right, with six buttons per page; use arrows, page dots, or swipe horizontally
+- On small screens the stats and shortcut panel stack vertically for portrait use
+- Flat charcoal styling with subdued color accents and no glow effects
 
-```json
-{"id":"docs","label":"Open docs","icon":"▤","type":"url","url":"https://example.com"}
-```
+## Manage shortcuts
 
-```json
-{"id":"editor","label":"Open editor","icon":"✎","type":"app","executable":"notepad.exe","args":[]}
-```
+Open `manage.bat`. Select **Add new**, enter a label and optional icon, choose URL or App, fill in the target, then select **Save button**. Select an existing button to edit it. Use **Remove**, **Move up**, and **Move down** to maintain the list and order. There is no fixed shortcut count; the dashboard divides buttons into six-button pages. Changes sync when the dashboard refreshes (within about ten seconds).
 
-The app's executable and argument list are trusted local configuration. Only the matching button ID is accepted from the tablet. Keep app arguments fixed and review them before use. URL actions open HTTP/HTTPS links in the PC's default browser.
+URL buttons must use `http://` or `https://`. App buttons store a fixed executable and optional arguments, one argument per line. The browser sends only a configured button ID, never a command. The included example app button opens Notepad on Windows.
 
 ## Pairing and network notes
 
-The token is generated on first start, stored in `config.json`, and required for stats and actions. Treat it like a password. Use the dashboard only on a trusted private Wi-Fi network; this first version uses plain HTTP on the local network, so do not forward its port to the public internet. To rotate the token, stop the host, clear the `token` value in `config.json`, and restart.
+The first host run creates a random token in `config.json`. Treat the pairing link as a password and use it only on a trusted private Wi-Fi network. This first version uses plain HTTP on the local network; do not forward its port to the public internet. Clear the token value in `config.json` and restart the host to rotate it.
 
-If Windows Firewall blocks the tablet, allow Python on a private network or adjust the firewall for the selected port. Guest Wi-Fi and client isolation can prevent devices from seeing each other.
+If Windows Firewall blocks the tablet, allow Python on a private network or adjust the firewall for the chosen port. Guest Wi-Fi and client isolation can prevent devices from seeing each other.
 
 ## Platform notes
 
-The host is cross-platform Python. CPU/memory stats use Windows system APIs or Linux `/proc`; disk and network support are best-effort. The included starter buttons target Windows. Change `config.json` for apps available on your platform. No external Python packages are required.
+The host is cross-platform Python. The desktop manager uses Tkinter, which is included with most standard Windows Python installers. CPU and memory stats use Windows APIs or Linux `/proc`; disk and network are best-effort. Included starter shortcuts target Windows. No third-party Python packages are required.
 
 ## GitHub first version
 
-The folder is ready to initialize as a Git repository. Before publishing, rotate the pairing token if the config contains a real one and review the action list for your machine. Do not commit a live token.
-
-## License
-
-No license has been selected yet. Add one before inviting contributions or presenting the repository as open source.
+Before publishing, ensure `config.json` contains an empty token (do not commit a live pairing token) and review the configured actions. No license has been selected yet; add one before inviting contributions or presenting the repository as open source.

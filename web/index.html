@@ -3,25 +3,43 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="theme-color" content="#0d1017">
+  <meta name="theme-color" content="#12161c">
   <title>DeckLink</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="topbar"><div class="brand"><span class="brand-mark">D</span><span>DeckLink</span></div><div id="connection" class="connection"><i></i><span>Connecting…</span></div></header>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">D</span><span>DeckLink</span></div>
+    <div id="connection" class="connection"><i></i><span>Connecting…</span></div>
+  </header>
   <main>
-    <section class="welcome"><div><p class="eyebrow">YOUR PC, AT A GLANCE</p><h1 id="host-title">Control center</h1><p class="subhead">Quick actions and live system stats.</p></div><div class="refresh-label"><span class="pulse"></span> LIVE</div></section>
-    <section class="stats-grid" aria-label="Computer status">
-      <article class="stat-card"><div class="stat-heading"><span class="stat-icon purple">◉</span><span>PROCESSOR</span></div><div class="stat-value"><strong id="cpu-value">—</strong><span>%</span></div><div class="meter"><i id="cpu-bar"></i></div><p id="cpu-caption">Waiting for data</p></article>
-      <article class="stat-card"><div class="stat-heading"><span class="stat-icon blue">▥</span><span>MEMORY</span></div><div class="stat-value"><strong id="ram-value">—</strong><span>%</span></div><div class="meter"><i id="ram-bar"></i></div><p id="ram-caption">Waiting for data</p></article>
-      <article class="stat-card"><div class="stat-heading"><span class="stat-icon orange">▰</span><span>DISK</span></div><div class="stat-value"><strong id="disk-value">—</strong><span>%</span></div><div class="meter"><i id="disk-bar"></i></div><p id="disk-caption">System drive</p></article>
-      <article class="stat-card network-card"><div class="stat-heading"><span class="stat-icon green">↕</span><span>NETWORK</span></div><div class="network-values"><div><small>↓ DOWNLOAD</small><strong id="down-value">—</strong><small>KB/s</small></div><div><small>↑ UPLOAD</small><strong id="up-value">—</strong><small>KB/s</small></div></div><p>Current transfer rate</p></article>
-    </section>
-    <section class="actions-section"><div class="section-heading"><div><p class="eyebrow">ONE TAP AWAY</p><h2>Quick actions</h2></div><span id="action-count" class="muted"></span></div><div id="actions" class="actions-grid"><div class="empty-state">Loading your buttons…</div></div></section>
-    <footer><span>DeckLink <span id="version">0.1.0</span></span><span>Connected to <strong id="host-name">your PC</strong></span></footer>
+    <div class="layout-shell">
+      <section class="stats-panel" aria-label="Computer stats">
+        <div class="panel-heading"><div><p class="eyebrow">PC STATUS</p><h1 id="host-title">DeckLink</h1></div><span id="host-name" class="host-name">Connecting</span></div>
+        <div class="stats-list">
+          <button class="stat-card selected" data-metric="cpu" type="button" aria-pressed="true"><span class="stat-heading">PROCESSOR</span><span class="stat-reading"><strong id="cpu-value">—</strong><small>%</small></span><span class="meter"><i id="cpu-bar"></i></span><span id="cpu-caption" class="stat-caption">Waiting for data</span></button>
+          <button class="stat-card" data-metric="memory" type="button" aria-pressed="false"><span class="stat-heading">MEMORY</span><span class="stat-reading"><strong id="ram-value">—</strong><small>%</small></span><span class="meter"><i id="ram-bar"></i></span><span id="ram-caption" class="stat-caption">Waiting for data</span></button>
+          <button class="stat-card" data-metric="disk" type="button" aria-pressed="false"><span class="stat-heading">DISK</span><span class="stat-reading"><strong id="disk-value">—</strong><small>%</small></span><span class="meter"><i id="disk-bar"></i></span><span id="disk-caption" class="stat-caption">System drive</span></button>
+          <button class="stat-card" data-metric="network" type="button" aria-pressed="false"><span class="stat-heading">NETWORK</span><span class="stat-reading network-reading"><strong id="down-value">—</strong><small>↓ KB/s</small><strong id="up-value">—</strong><small>↑ KB/s</small></span><span class="meter"><i id="network-bar"></i></span><span class="stat-caption">Transfer rate</span></button>
+        </div>
+        <section class="chart-card" aria-label="Live metric graph">
+          <div class="chart-heading"><div><p class="eyebrow">LIVE HISTORY</p><h2 id="chart-title">Processor</h2></div><div class="chart-current"><strong id="chart-current">—</strong><span id="chart-unit">%</span></div></div>
+          <div class="chart-wrap"><canvas id="metric-chart" aria-label="Live history graph"></canvas></div>
+          <div class="chart-foot"><span>Recent readings</span><span id="chart-legend">CPU usage</span></div>
+        </section>
+      </section>
+      <section class="shortcuts-panel" aria-label="Shortcuts">
+        <div class="panel-heading shortcuts-heading"><div><p class="eyebrow">YOUR BUTTONS</p><h2>Shortcuts</h2></div><span id="action-count" class="host-name">0 buttons</span></div>
+        <div id="actions-viewport" class="actions-viewport" aria-live="polite"><div id="actions" class="actions-grid"><div class="empty-state">Loading your buttons…</div></div></div>
+        <div class="page-controls"><button id="page-prev" class="page-arrow" type="button" aria-label="Previous shortcuts">‹</button><div id="page-dots" class="page-dots"></div><button id="page-next" class="page-arrow" type="button" aria-label="Next shortcuts">›</button></div>
+        <p id="page-label" class="page-label">Swipe to change pages</p>
+        <p class="manager-hint">Add and arrange buttons in the DeckLink desktop manager.</p>
+      </section>
+    </div>
+    <footer><span>DeckLink <span id="version">0.1.0</span></span><span>Swipe shortcuts to change pages</span></footer>
   </main>
   <div id="toast" class="toast" aria-live="polite"></div>
-  <section id="pair-screen" class="pair-screen" style="display:none"><div class="pair-card"><div class="brand-mark large">D</div><p class="eyebrow">CONNECT TO YOUR PC</p><h1>Pair your device</h1><p>Enter the token shown in the DeckLink window on your PC.</p><form id="pair-form"><input id="token-input" type="text" autocomplete="off" autocapitalize="off" placeholder="Paste your host token"><button type="submit">Connect</button></form><p class="pair-help">Your tablet and PC need to be on the same Wi-Fi network.</p></div></section>
+  <section id="pair-screen" class="pair-screen" style="display:none"><div class="pair-card"><div class="brand-mark large">D</div><p class="eyebrow">CONNECT TO YOUR PC</p><h1>Pair this device</h1><p>Enter the token shown in the DeckLink host window on your PC.</p><form id="pair-form"><input id="token-input" type="text" autocomplete="off" autocapitalize="off" placeholder="Paste your host token"><button type="submit">Connect</button></form><p class="pair-help">Your tablet and PC need to be on the same Wi-Fi.</p></div></section>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -32,6 +32,7 @@ def load_config():
 def local_ip():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
+        sock.settimeout(1.5)
         sock.connect(("8.8.8.8", 80))
         return sock.getsockname()[0]
     except OSError:
@@ -150,6 +151,16 @@ def launch(action):
         raise ValueError("Unsupported action type")
 
 
+def refresh_config(server):
+    """Pick up desktop-manager edits without restarting the web host."""
+    config = load_config()
+    if config.get("token") != server.token:
+        # Token changes take effect only after restart so active sessions fail closed.
+        config["token"] = server.token
+    server.config = config
+    return config
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "DeckLink/0.1"
 
@@ -173,8 +184,9 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/") and not self.authorized():
             return self.send_json(401, {"error": "Pair with your host token"})
         if path == "/api/info":
-            actions = [{"id": x["id"], "label": x["label"], "icon": x.get("icon", "⚡")} for x in self.server.config.get("actions", [])]
-            return self.send_json(200, {"name": self.server.config.get("name", "DeckLink"), "actions": actions,
+            config = refresh_config(self.server)
+            actions = [{"id": x["id"], "label": x["label"], "icon": x.get("icon", "•")} for x in config.get("actions", [])]
+            return self.send_json(200, {"name": config.get("name", "DeckLink"), "actions": actions,
                 "host": socket.gethostname(), "version": "0.1.0"})
         if path == "/api/stats":
             return self.send_json(200, stats())
@@ -195,9 +207,10 @@ class Handler(BaseHTTPRequestHandler):
         if path != "/api/action":
             return self.send_json(404, {"error": "Not found"})
         try:
+            config = refresh_config(self.server)
             payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
             action_id = payload.get("id")
-            action = next((a for a in self.server.config.get("actions", []) if a.get("id") == action_id), None)
+            action = next((a for a in config.get("actions", []) if a.get("id") == action_id), None)
             if action is None:
                 return self.send_json(404, {"error": "Unknown button"})
             launch(action)
@@ -218,9 +231,9 @@ def main():
     server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
     server.token, server.config = token, config
     address = "http://%s:%d/?token=%s" % (local_ip(), args.port, token)
-    print("DeckLink is ready: " + address)
-    print("Open that address on your tablet while both devices are on the same Wi-Fi.")
-    print("Keep this window open. Press Ctrl+C to stop.")
+    print("DeckLink is ready: " + address, flush=True)
+    print("Open that address on your tablet while both devices are on the same Wi-Fi.", flush=True)
+    print("Keep this window open. Press Ctrl+C to stop.", flush=True)
     if not args.no_open:
         webbrowser.open(address)
     try:
