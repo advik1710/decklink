@@ -12,6 +12,8 @@ A lightweight PC dashboard for an Android phone or tablet on the same local netw
 
 You can also double-click `start.bat` to run the host without the manager, or run `python host.py --no-open` / `python host.py --port 8765`.
 
+To run the host without leaving a terminal open, double-click `start-headless.bat`. It writes output to `decklink-host.log` and errors to `decklink-error.log`. Double-click `stop.bat` to stop that background host.
+
 ## Dashboard
 
 - CPU, memory, disk, and network stat cards on the left side of desktop layouts

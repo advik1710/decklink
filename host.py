@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
+PID_PATH = ROOT / ".decklink.pid"
 WEB_ROOT = ROOT / "web"
 LOCK = threading.Lock()
 PREV_IDLE = PREV_TOTAL = None
@@ -128,6 +129,14 @@ def stats():
             "platform": platform.system(), "uptime": int(time.time()-STARTED)}
 
 
+def clear_pid_file():
+    try:
+        if PID_PATH.read_text(encoding="ascii").strip() == str(os.getpid()):
+            PID_PATH.unlink()
+    except (OSError, ValueError):
+        pass
+
+
 def launch(action):
     """Execute only configured action types. No client-supplied command is accepted."""
     kind = action.get("type")
@@ -230,6 +239,7 @@ def main():
     CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
     server.token, server.config = token, config
+    PID_PATH.write_text(str(os.getpid()), encoding="ascii")
     address = "http://%s:%d/?token=%s" % (local_ip(), args.port, token)
     print("DeckLink is ready: " + address, flush=True)
     print("Open that address on your tablet while both devices are on the same Wi-Fi.", flush=True)
@@ -242,6 +252,7 @@ def main():
         print("\nStopping DeckLink...")
     finally:
         server.server_close()
+        clear_pid_file()
 
 
 if __name__ == "__main__":

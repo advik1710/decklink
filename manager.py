@@ -257,12 +257,27 @@ class Manager:
     def stop_host(self):
         if not self.host_process or self.host_process.poll() is not None:
             self.status_var.set("No host started by this manager is running"); return
+        host_pid = self.host_process.pid
         self.host_process.terminate()
+        try:
+            self.host_process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            pass
         self.host_process = None
+        self._clear_pid_file(host_pid)
         self.status_var.set("Host stopped")
+
+    def _clear_pid_file(self, host_pid):
+        pid_path = ROOT / ".decklink.pid"
+        try:
+            if pid_path.read_text(encoding="ascii").strip() == str(host_pid):
+                pid_path.unlink()
+        except (OSError, ValueError):
+            pass
 
     def _refresh_host_status(self):
         if self.host_process and self.host_process.poll() is not None:
+            self._clear_pid_file(self.host_process.pid)
             self.host_process = None; self.status_var.set("Host stopped")
         self.root.after(1500, self._refresh_host_status)
 
