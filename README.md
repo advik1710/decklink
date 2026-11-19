@@ -2,7 +2,6 @@
 
 A lightweight PC dashboard for an Android phone or tablet on the same local network. The Python host uses the standard library; the web interface is plain HTML, CSS, and JavaScript for older Android browsers.
 
-**Working title only:** DeckLink is temporary. Check GitHub, domain, and trademark availability before publishing under this name.
 
 ## Start on Windows
 
@@ -37,6 +36,4 @@ If Windows Firewall blocks the tablet, allow Python on a private network or adju
 
 The host is cross-platform Python. The desktop manager uses Tkinter, which is included with most standard Windows Python installers. CPU and memory stats use Windows APIs or Linux `/proc`; disk and network are best-effort. Included starter shortcuts target Windows. No third-party Python packages are required.
 
-## GitHub first version
 
-Before publishing, ensure `config.json` contains an empty token (do not commit a live pairing token) and review the configured actions. No license has been selected yet; add one before inviting contributions or presenting the repository as open source.
