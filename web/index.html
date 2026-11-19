@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">D</span><span>DeckLink</span></div>
-    <div id="connection" class="connection"><i></i><span>Connecting…</span></div>
+    <div class="top-actions"><select id="profile-select" aria-label="Active profile" hidden></select><button id="theme-toggle" type="button">Theme</button><button id="size-toggle" type="button">Button size</button><button id="find-pc" type="button">Find a PC</button><div id="connection" class="connection"><i></i><span>Connecting…</span></div></div>
   </header>
   <main>
     <div class="layout-shell">
@@ -21,6 +21,7 @@
           <button class="stat-card" data-metric="memory" type="button" aria-pressed="false"><span class="stat-heading">MEMORY</span><span class="stat-reading"><strong id="ram-value">—</strong><small>%</small></span><span class="meter"><i id="ram-bar"></i></span><span id="ram-caption" class="stat-caption">Waiting for data</span></button>
           <button class="stat-card" data-metric="disk" type="button" aria-pressed="false"><span class="stat-heading">DISK</span><span class="stat-reading"><strong id="disk-value">—</strong><small>%</small></span><span class="meter"><i id="disk-bar"></i></span><span id="disk-caption" class="stat-caption">System drive</span></button>
           <button class="stat-card" data-metric="network" type="button" aria-pressed="false"><span class="stat-heading">NETWORK</span><span class="stat-reading network-reading"><strong id="down-value">—</strong><small>↓ KB/s</small><strong id="up-value">—</strong><small>↑ KB/s</small></span><span class="meter"><i id="network-bar"></i></span><span class="stat-caption">Transfer rate</span></button>
+          <div id="temperature-card" class="stat-card unavailable" aria-label="GPU temperature unavailable"><span class="stat-heading">GPU TEMPERATURE</span><span class="stat-reading"><strong id="temperature-value">Not available</strong></span><span class="meter" hidden><i id="temperature-bar"></i></span><span id="temperature-caption" class="stat-caption">No supported sensor detected</span></div>
         </div>
         <section class="chart-card" aria-label="Live metric graph">
           <div class="chart-heading"><div><p class="eyebrow">LIVE HISTORY</p><h2 id="chart-title">Processor</h2></div><div class="chart-current"><strong id="chart-current">—</strong><span id="chart-unit">%</span></div></div>
@@ -36,7 +37,9 @@
         <p class="manager-hint">Add and arrange buttons in the DeckLink desktop manager.</p>
       </section>
     </div>
-    <footer><span>DeckLink <span id="version">0.1.0</span></span><span>Swipe shortcuts to change pages</span></footer>
+    <section id="now-playing" class="now-playing" hidden aria-live="polite"><button id="now-playing-back" type="button">Back to shortcuts</button><p class="eyebrow">NOW PLAYING</p><h1 id="media-title">Playback unavailable</h1><p id="media-artist"></p><p id="media-state">This host has no supported playback provider configured.</p></section>
+    <section id="connection-tools" class="connection-tools" hidden><label for="host-address">PC address</label><input id="host-address" type="url" placeholder="http://192.168.1.10:8765"><button id="connect-host" type="button">Connect</button><button id="close-connection-tools" type="button">Close</button><p id="discovery-status">Searching the local network is not available yet. Enter the PC address shown by DeckLink.</p></section>
+    <footer><span>DeckLink <span id="version">0.1.2</span></span><span>Swipe shortcuts to change pages</span></footer>
   </main>
   <div id="toast" class="toast" aria-live="polite"></div>
   <section id="pair-screen" class="pair-screen" style="display:none"><div class="pair-card"><div class="brand-mark large">D</div><p class="eyebrow">CONNECT TO YOUR PC</p><h1>Pair this device</h1><p>Enter the token shown in the DeckLink host window on your PC.</p><form id="pair-form"><input id="token-input" type="text" autocomplete="off" autocapitalize="off" placeholder="Paste your host token"><button type="submit">Connect</button></form><p class="pair-help">Your tablet and PC need to be on the same Wi-Fi.</p></div></section>

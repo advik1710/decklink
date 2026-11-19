@@ -8,9 +8,13 @@ import subprocess
 import sys
 import uuid
 import webbrowser
+if os.name == "nt":
+    import winreg
+else:
+    winreg = None
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
@@ -23,6 +27,14 @@ def read_config():
     config.setdefault("name", "DeckLink")
     config.setdefault("token", "")
     config.setdefault("actions", [])
+    if not isinstance(config.get("profiles"), list) or not config["profiles"]:
+        config["profiles"] = [{"id": "default", "name": "Default", "pages": [{"id": "page-1", "name": "Page 1", "actions": config["actions"]}]}]
+    config.setdefault("activeProfileId", config["profiles"][0].get("id", "default"))
+    active = next((p for p in config["profiles"] if p.get("id") == config["activeProfileId"]), config["profiles"][0])
+    config["activeProfileId"] = active.setdefault("id", "default")
+    if not active.get("pages"):
+        active["pages"] = [{"id": "page-1", "name": "Page 1", "actions": config["actions"]}]
+    config["actions"] = [a for page in active["pages"] for a in page.get("actions", [])]
     return config
 
 
@@ -56,6 +68,7 @@ class Manager:
         self._build()
         self.name_var.set(self.config.get("name", "DeckLink"))
         self._refresh_list()
+        self._refresh_profiles()
         self._refresh_host_status()
 
     def _build(self):
@@ -71,6 +84,15 @@ class Manager:
         top = ttk.Frame(outer); top.pack(fill="x")
         ttk.Label(top, text="DeckLink", style="Title.TLabel").pack(side="left")
         ttk.Label(top, text="Desktop Manager", style="Hint.TLabel").pack(side="left", padx=(10, 0), pady=(8, 0))
+        tools = ttk.Frame(outer); tools.pack(fill="x", pady=(8, 0))
+        ttk.Label(tools, text="Profile").pack(side="left")
+        self.profile_var = tk.StringVar()
+        self.profile_box = ttk.Combobox(tools, textvariable=self.profile_var, state="readonly", width=20)
+        self.profile_box.pack(side="left", padx=6); self.profile_box.bind("<<ComboboxSelected>>", self.select_profile)
+        ttk.Button(tools, text="New profile", command=self.new_profile).pack(side="left", padx=3)
+        ttk.Button(tools, text="Delete profile", command=self.delete_profile).pack(side="left", padx=3)
+        ttk.Button(tools, text="Export layout", command=self.export_layout).pack(side="right", padx=3)
+        ttk.Button(tools, text="Import layout", command=self.import_layout).pack(side="right", padx=3)
         name_row = ttk.Frame(outer); name_row.pack(fill="x", pady=(15, 12))
         ttk.Label(name_row, text="Dashboard name").pack(side="left")
         self.name_var = tk.StringVar()
@@ -129,6 +151,8 @@ class Manager:
         self.link_var = tk.StringVar(value="Start the host to create your private pairing link.")
         ttk.Entry(bottom, textvariable=self.link_var, state="readonly").grid(row=1, column=0, columnspan=5, sticky="ew", pady=(8, 0))
         bottom.columnconfigure(0, weight=1)
+        self.startup_var = tk.BooleanVar(value=self._startup_enabled())
+        ttk.Checkbutton(bottom, text="Start host when I sign in", variable=self.startup_var, command=self.set_startup).grid(row=2, column=0, sticky="w", pady=(7, 0))
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
     def _field(self, parent, label, variable, row):
@@ -138,6 +162,101 @@ class Manager:
     def save_name(self):
         value = self.name_var.get().strip() or "DeckLink"
         self.name_var.set(value); self.config["name"] = value; self._save()
+
+    def _active_profile(self):
+        return next((p for p in self.config.get("profiles", []) if p.get("id") == self.config.get("activeProfileId")), self.config["profiles"][0])
+
+    def _refresh_profiles(self):
+        names = [p.get("name", "Profile") for p in self.config.get("profiles", [])]
+        self.profile_box["values"] = names
+        active = self._active_profile()
+        self.profile_var.set(active.get("name", "Default"))
+
+    def _store_active_actions(self):
+        profile = self._active_profile()
+        if not profile.get("pages"):
+            profile["pages"] = [{"id": "page-1", "name": "Page 1", "actions": []}]
+        profile["pages"][0]["actions"] = self.config.get("actions", [])
+
+    def select_profile(self, _event=None):
+        chosen = next((p for p in self.config["profiles"] if p.get("name") == self.profile_var.get()), None)
+        if not chosen:
+            return
+        self._store_active_actions(); self.config["activeProfileId"] = chosen["id"]
+        self.config["actions"] = chosen["pages"][0].get("actions", [])
+        self.selected_id = None; self._save(); self._refresh_list(); self._refresh_profiles()
+
+    def new_profile(self):
+        name = simpledialog.askstring("New profile", "Profile name:", parent=self.root)
+        if not name or not name.strip():
+            return
+        self._store_active_actions()
+        profile = {"id": uuid.uuid4().hex[:12], "name": name.strip(), "pages": [{"id": "page-1", "name": "Page 1", "actions": []}], "preferences": {}}
+        self.config["profiles"].append(profile); self.config["activeProfileId"] = profile["id"]; self.config["actions"] = []
+        self.selected_id = None; self._save(); self._refresh_list(); self._refresh_profiles()
+
+    def delete_profile(self):
+        if len(self.config["profiles"]) < 2:
+            messagebox.showinfo("Keep one profile", "DeckLink needs at least one profile.", parent=self.root); return
+        profile = self._active_profile()
+        if not messagebox.askyesno("Delete profile", "Delete '{}' and its shortcuts?".format(profile["name"]), parent=self.root):
+            return
+        self.config["profiles"] = [p for p in self.config["profiles"] if p["id"] != profile["id"]]
+        self.config["activeProfileId"] = self.config["profiles"][0]["id"]
+        self.config["actions"] = self._active_profile()["pages"][0].get("actions", [])
+        self._save(); self._refresh_profiles(); self._refresh_list()
+
+    def export_layout(self):
+        self._store_active_actions()
+        path = filedialog.asksaveasfilename(parent=self.root, title="Export DeckLink layout", defaultextension=".json", filetypes=(("JSON layout", "*.json"),))
+        if not path: return
+        data = {"format": "decklink-layout", "schemaVersion": 1, "profiles": self.config["profiles"], "activeProfileId": self.config["activeProfileId"]}
+        try:
+            Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            messagebox.showinfo("Layout exported", "Your profiles and shortcuts were exported. Pairing tokens are not included.", parent=self.root)
+        except OSError as err: messagebox.showerror("Export failed", str(err), parent=self.root)
+
+    def import_layout(self):
+        path = filedialog.askopenfilename(parent=self.root, title="Import DeckLink layout", filetypes=(("JSON layout", "*.json"),))
+        if not path: return
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            profiles = data.get("profiles")
+            if data.get("format") != "decklink-layout" or data.get("schemaVersion") != 1 or not isinstance(profiles, list) or not profiles:
+                raise ValueError("This file is not a supported DeckLink layout.")
+            for profile in profiles:
+                if not isinstance(profile, dict) or not profile.get("id") or not isinstance(profile.get("pages"), list):
+                    raise ValueError("A profile is missing its ID or pages.")
+                for page in profile["pages"]:
+                    if not isinstance(page, dict) or not isinstance(page.get("actions", []), list): raise ValueError("A profile page has invalid shortcuts.")
+            if not messagebox.askyesno("Replace layout?", "Import will replace all current profiles and shortcuts. Continue?", parent=self.root): return
+            self.config["profiles"] = profiles; self.config["activeProfileId"] = data.get("activeProfileId", profiles[0]["id"])
+            self.config["activeProfileId"] = next((p["id"] for p in profiles if p["id"] == self.config["activeProfileId"]), profiles[0]["id"])
+            self.config["actions"] = [a for page in self._active_profile()["pages"] for a in page.get("actions", [])]
+            self._save(); self._refresh_profiles(); self._refresh_list()
+        except (OSError, ValueError, json.JSONDecodeError, KeyError) as err: messagebox.showerror("Import failed", str(err), parent=self.root)
+
+    def _startup_enabled(self):
+        if os.name != "nt": return False
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run") as key:
+                winreg.QueryValueEx(key, "DeckLink")
+                return True
+        except OSError: return False
+
+    def set_startup(self):
+        if os.name != "nt":
+            messagebox.showinfo("Windows only", "Sign-in startup is available on Windows.", parent=self.root); self.startup_var.set(False); return
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE) as key:
+                if self.startup_var.get():
+                    python = sys.executable.replace("python.exe", "pythonw.exe")
+                    winreg.SetValueEx(key, "DeckLink", 0, winreg.REG_SZ, '"{}" "{}" --no-open'.format(python, ROOT / "host.py"))
+                else:
+                    try: winreg.DeleteValue(key, "DeckLink")
+                    except FileNotFoundError: pass
+        except OSError as err:
+            self.startup_var.set(not self.startup_var.get()); messagebox.showerror("Startup setting failed", str(err), parent=self.root)
 
     def type_changed(self, _event=None):
         is_app = self.type_var.get() == "app"
@@ -220,6 +339,7 @@ class Manager:
 
     def _save(self):
         try:
+            self._store_active_actions()
             write_config(self.config)
             self.status_var.set("Saved · shortcut changes sync to the dashboard")
         except OSError as err:

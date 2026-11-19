@@ -23,6 +23,56 @@ LOCK = threading.Lock()
 PREV_IDLE = PREV_TOTAL = None
 NET_PREV = None
 STARTED = time.time()
+HOST_ID_PATH = ROOT / ".decklink-host-id"
+
+
+def host_id():
+    try:
+        value = HOST_ID_PATH.read_text(encoding="ascii").strip()
+        if value:
+            return value
+    except OSError:
+        pass
+    value = secrets.token_hex(12)
+    try:
+        HOST_ID_PATH.write_text(value, encoding="ascii")
+    except OSError:
+        pass
+    return value
+
+
+def normalize_profiles(config):
+    """Migrate legacy flat shortcuts into a default profile in memory."""
+    profiles = config.get("profiles")
+    if not isinstance(profiles, list) or not profiles:
+        profiles = [{"id": "default", "name": "Default", "pages": [{
+            "id": "page-1", "name": "Page 1", "actions": config.get("actions", [])
+        }]}]
+    clean = []
+    for profile in profiles:
+        if not isinstance(profile, dict):
+            continue
+        pages = profile.get("pages") if isinstance(profile.get("pages"), list) else []
+        clean_pages = []
+        for index, page in enumerate(pages):
+            if isinstance(page, dict):
+                actions = page.get("actions") if isinstance(page.get("actions"), list) else []
+                clean_pages.append({"id": str(page.get("id") or "page-%d" % (index + 1)),
+                    "name": str(page.get("name") or "Page %d" % (index + 1)), "actions": actions})
+        if not clean_pages:
+            clean_pages = [{"id": "page-1", "name": "Page 1", "actions": []}]
+        clean.append({"id": str(profile.get("id") or secrets.token_hex(6)),
+            "name": str(profile.get("name") or "Profile"), "pages": clean_pages,
+            "preferences": profile.get("preferences", {})})
+    if not clean:
+        clean = [{"id": "default", "name": "Default", "pages": [{"id": "page-1", "name": "Page 1", "actions": []}]}]
+    active = str(config.get("activeProfileId") or clean[0]["id"])
+    if not any(item["id"] == active for item in clean):
+        active = clean[0]["id"]
+    config["profiles"], config["activeProfileId"] = clean, active
+    selected = next(item for item in clean if item["id"] == active)
+    config["actions"] = [action for page in selected["pages"] for action in page["actions"]]
+    return config
 
 
 def load_config():
@@ -126,7 +176,8 @@ def stats():
     return {"cpu": cpu_percent(), "memory": memory_stats(),
             "disk": {"total": usage.total, "used": usage.used, "percent": round(100*usage.used/usage.total)},
             "network": network_stats(), "hostname": socket.gethostname(),
-            "platform": platform.system(), "uptime": int(time.time()-STARTED)}
+            "platform": platform.system(), "uptime": int(time.time()-STARTED),
+            "gpuTemperature": {"value": None, "unit": "°C", "status": "unsupported", "source": None}}
 
 
 def clear_pid_file():
@@ -162,7 +213,7 @@ def launch(action):
 
 def refresh_config(server):
     """Pick up desktop-manager edits without restarting the web host."""
-    config = load_config()
+    config = normalize_profiles(load_config())
     if config.get("token") != server.token:
         # Token changes take effect only after restart so active sessions fail closed.
         config["token"] = server.token
@@ -195,8 +246,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/info":
             config = refresh_config(self.server)
             actions = [{"id": x["id"], "label": x["label"], "icon": x.get("icon", "•")} for x in config.get("actions", [])]
+            profiles = [{"id": p["id"], "name": p["name"], "pages": [
+                {"id": page["id"], "name": page["name"], "actions": [
+                    {"id": a["id"], "label": a["label"], "icon": a.get("icon", "•")} for a in page["actions"]]}
+                for page in p["pages"]]} for p in config["profiles"]]
             return self.send_json(200, {"name": config.get("name", "DeckLink"), "actions": actions,
-                "host": socket.gethostname(), "version": "0.1.0"})
+                "profiles": profiles, "activeProfileId": config["activeProfileId"],
+                "host": socket.gethostname(), "hostId": host_id(), "version": "0.1.1"})
         if path == "/api/stats":
             return self.send_json(200, stats())
         if path == "/":
@@ -213,11 +269,25 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if not self.authorized():
             return self.send_json(401, {"error": "Pair with your host token"})
-        if path != "/api/action":
+        if path not in ("/api/action", "/api/profile"):
             return self.send_json(404, {"error": "Not found"})
         try:
             config = refresh_config(self.server)
             payload = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
+            if path == "/api/profile":
+                profile_id = payload.get("id")
+                if not any(p["id"] == profile_id for p in config["profiles"]):
+                    return self.send_json(404, {"error": "Unknown profile"})
+                saved = load_config()
+                saved["profiles"] = config["profiles"]
+                saved["activeProfileId"] = profile_id
+                active = next(p for p in saved["profiles"] if p["id"] == profile_id)
+                saved["actions"] = [a for page in active["pages"] for a in page["actions"]]
+                temp = CONFIG_PATH.with_suffix(".json.tmp")
+                temp.write_text(json.dumps(saved, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                os.replace(str(temp), str(CONFIG_PATH))
+                self.server.config = normalize_profiles(saved)
+                return self.send_json(200, {"ok": True})
             action_id = payload.get("id")
             action = next((a for a in config.get("actions", []) if a.get("id") == action_id), None)
             if action is None:
