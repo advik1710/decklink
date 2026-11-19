@@ -1,0 +1,21 @@
+{
+  "name": "DeckLink",
+  "token": "",
+  "actions": [
+    {
+      "id": "open-homepage",
+      "label": "Open homepage",
+      "icon": "⌂",
+      "type": "url",
+      "url": "https://www.google.com"
+    },
+    {
+      "id": "open-notepad",
+      "label": "Open Notepad",
+      "icon": "▤",
+      "type": "app",
+      "executable": "notepad.exe",
+      "args": []
+    }
+  ]
+}
