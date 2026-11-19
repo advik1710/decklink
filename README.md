@@ -1,6 +1,6 @@
 # DeckLink
 
-A lightweight PC dashboard for an Android phone or tablet on the same local network. The Python host uses the standard library; the web interface is plain HTML, CSS, and JavaScript for older Android browsers.
+A lightweight PC dashboard for an Android phone or tablet on the same local network. The Python host uses the standard library; the web interface is plain HTML, CSS, and JavaScript which works on any browsers, no matter how old.
 
 
 ## Start on Windows
