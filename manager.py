@@ -25,7 +25,7 @@ def read_config():
     with CONFIG_PATH.open("r", encoding="utf-8-sig") as stream:
         config = json.load(stream)
     config.setdefault("name", "DeckLink")
-    config.setdefault("token", "")
+    config.pop("token", None)
     config.setdefault("actions", [])
     if not isinstance(config.get("profiles"), list) or not config["profiles"]:
         config["profiles"] = [{"id": "default", "name": "Default", "pages": [{"id": "page-1", "name": "Page 1", "actions": config["actions"]}]}]
@@ -39,6 +39,7 @@ def read_config():
 
 
 def write_config(config):
+    config.pop("token", None)
     temp_path = CONFIG_PATH.with_suffix(".json.tmp")
     temp_path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(str(temp_path), str(CONFIG_PATH))
@@ -141,14 +142,14 @@ class Manager:
         right.columnconfigure(1, weight=1)
         self.type_changed()
 
-        bottom = ttk.LabelFrame(outer, text="Host and pairing", padding=9); bottom.pack(fill="x", pady=(14, 0))
+        bottom = ttk.LabelFrame(outer, text="Host connection", padding=9); bottom.pack(fill="x", pady=(14, 0))
         self.status_var = tk.StringVar(value="Host stopped")
         ttk.Label(bottom, textvariable=self.status_var).grid(row=0, column=0, sticky="w", padx=(0, 12))
         ttk.Button(bottom, text="Start host", command=self.start_host).grid(row=0, column=1, padx=3)
         ttk.Button(bottom, text="Stop host", command=self.stop_host).grid(row=0, column=2, padx=3)
         ttk.Button(bottom, text="Open dashboard", command=self.open_dashboard).grid(row=0, column=3, padx=3)
-        ttk.Button(bottom, text="Copy tablet link", command=self.copy_link).grid(row=0, column=4, padx=3)
-        self.link_var = tk.StringVar(value="Start the host to create your private pairing link.")
+        ttk.Button(bottom, text="Copy PC address", command=self.copy_link).grid(row=0, column=4, padx=3)
+        self.link_var = tk.StringVar(value="Start host to show this PC's address and six-digit PIN.")
         ttk.Entry(bottom, textvariable=self.link_var, state="readonly").grid(row=1, column=0, columnspan=5, sticky="ew", pady=(8, 0))
         bottom.columnconfigure(0, weight=1)
         self.startup_var = tk.BooleanVar(value=self._startup_enabled())
@@ -346,21 +347,23 @@ class Manager:
             messagebox.showerror("Could not save", str(err), parent=self.root)
 
     def _pairing_link(self):
-        token = self.config.get("token", "")
-        if not token: return ""
-        return "http://{}:{}/?token={}".format(local_ip(), PORT, token)
+        return "http://{}:{}".format(local_ip(), PORT)
+
+    def _connection_text(self):
+        try: pin = (ROOT / ".decklink.pin").read_text(encoding="ascii").strip()
+        except OSError: pin = "------"
+        return "PC address: {} · PIN: {}".format(self._pairing_link(), pin)
 
     def start_host(self):
         if self.host_process and self.host_process.poll() is None:
             self.status_var.set("Host is running")
+            self.link_var.set(self._connection_text())
             return
-        if not self.config.get("token"):
-            self.config["token"] = secrets.token_urlsafe(24); self._save()
         try:
             probe = socket.create_connection(("127.0.0.1", PORT), timeout=0.35)
             probe.close()
             self.status_var.set("Host is already running")
-            self.link_var.set(self._pairing_link())
+            self.link_var.set(self._connection_text())
             self.open_dashboard()
             return
         except OSError:
@@ -368,8 +371,8 @@ class Manager:
         flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if os.name == "nt" else 0
         try:
             self.host_process = subprocess.Popen([sys.executable, str(ROOT / "host.py")], cwd=str(ROOT), creationflags=flags)
-            self.link_var.set(self._pairing_link())
-            self.status_var.set("Host starting · use the tablet link on the same Wi-Fi")
+            self.link_var.set("PC address: {} · PIN: generating…".format(self._pairing_link()))
+            self.status_var.set("Host starting · PIN refreshes on every start")
             self.root.after(900, self.open_dashboard)
         except OSError as err:
             messagebox.showerror("Could not start host", str(err), parent=self.root)
@@ -384,6 +387,8 @@ class Manager:
         except subprocess.TimeoutExpired:
             pass
         self.host_process = None
+        try: (ROOT / ".decklink.pin").unlink()
+        except OSError: pass
         self._clear_pid_file(host_pid)
         self.status_var.set("Host stopped")
 
@@ -399,19 +404,19 @@ class Manager:
         if self.host_process and self.host_process.poll() is not None:
             self._clear_pid_file(self.host_process.pid)
             self.host_process = None; self.status_var.set("Host stopped")
+        if self.host_process and self.host_process.poll() is None:
+            try:
+                self.link_var.set(self._connection_text())
+            except OSError:
+                pass
         self.root.after(1500, self._refresh_host_status)
 
     def open_dashboard(self):
-        link = self._pairing_link()
-        if not link:
-            messagebox.showinfo("Start the host first", "Start the host to generate your pairing link.", parent=self.root); return
-        webbrowser.open(link)
+        webbrowser.open(self._pairing_link())
 
     def copy_link(self):
         link = self._pairing_link()
-        if not link:
-            messagebox.showinfo("Start the host first", "Start the host to generate your pairing link.", parent=self.root); return
-        self.root.clipboard_clear(); self.root.clipboard_append(link); self.status_var.set("Tablet pairing link copied")
+        self.root.clipboard_clear(); self.root.clipboard_append(link); self.status_var.set("PC address copied")
 
     def close(self):
         self.save_name()

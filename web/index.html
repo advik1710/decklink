@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">D</span><span>DeckLink</span></div>
-    <div class="top-actions"><select id="profile-select" aria-label="Active profile" hidden></select><button id="theme-toggle" type="button">Theme</button><button id="size-toggle" type="button">Button size</button><button id="find-pc" type="button">Find a PC</button><div id="connection" class="connection"><i></i><span>Connecting…</span></div></div>
+    <div class="top-actions"><select id="profile-select" aria-label="Active profile" hidden></select><select id="theme-select" aria-label="Color theme"><option value="slate">Slate</option><option value="ocean">Ocean</option><option value="forest">Forest</option><option value="plum">Plum</option><option value="sand">Sand</option><option value="rose">Rose</option><option value="ember">Ember</option><option value="teal">Teal</option><option value="mono">Mono</option><option value="light">Light</option><option value="glow-blue">Glow Blue</option><option value="glow-violet">Glow Violet</option><option value="glow-teal">Glow Teal</option><option value="gradient-sunset">Gradient Sunset</option><option value="gradient-aurora">Gradient Aurora</option></select><button id="size-toggle" type="button">Button size</button><button id="find-pc" type="button">Find a PC</button><div id="connection" class="connection"><i></i><span>Connecting…</span></div></div>
   </header>
   <main>
     <div class="layout-shell">
@@ -38,11 +38,10 @@
       </section>
     </div>
     <section id="now-playing" class="now-playing" hidden aria-live="polite"><button id="now-playing-back" type="button">Back to shortcuts</button><p class="eyebrow">NOW PLAYING</p><h1 id="media-title">Playback unavailable</h1><p id="media-artist"></p><p id="media-state">This host has no supported playback provider configured.</p></section>
-    <section id="connection-tools" class="connection-tools" hidden><label for="host-address">PC address</label><input id="host-address" type="url" placeholder="http://192.168.1.10:8765"><button id="connect-host" type="button">Connect</button><button id="close-connection-tools" type="button">Close</button><p id="discovery-status">Searching the local network is not available yet. Enter the PC address shown by DeckLink.</p></section>
-    <footer><span>DeckLink <span id="version">0.1.2</span></span><span>Swipe shortcuts to change pages</span></footer>
+    <footer><span>DeckLink <span id="version">0.1.3beta</span></span><span>Swipe shortcuts to change pages</span></footer>
   </main>
   <div id="toast" class="toast" aria-live="polite"></div>
-  <section id="pair-screen" class="pair-screen" style="display:none"><div class="pair-card"><div class="brand-mark large">D</div><p class="eyebrow">CONNECT TO YOUR PC</p><h1>Pair this device</h1><p>Enter the token shown in the DeckLink host window on your PC.</p><form id="pair-form"><input id="token-input" type="text" autocomplete="off" autocapitalize="off" placeholder="Paste your host token"><button type="submit">Connect</button></form><p class="pair-help">Your tablet and PC need to be on the same Wi-Fi.</p></div></section>
+  <section id="pair-screen" class="pair-screen"><div class="pair-card"><div class="brand-mark large">D</div><p class="eyebrow">CONNECT TO YOUR PC</p><h1>Find a PC</h1><p>Enter the IP address and current six-digit PIN shown in the DeckLink desktop manager.</p><form id="pair-form"><input id="host-address" type="url" autocomplete="url" placeholder="http://192.168.1.10:8765"><input id="pin-input" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="Six-digit PIN"><button type="submit">Connect</button></form><p class="pair-help">The PIN changes whenever the host starts. Keep both devices on the same Wi-Fi.</p></div></section>
   <script src="/app.js"></script>
 </body>
 </html>

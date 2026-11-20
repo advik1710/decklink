@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "config.json"
 PID_PATH = ROOT / ".decklink.pid"
+PIN_PATH = ROOT / ".decklink.pin"
 WEB_ROOT = ROOT / "web"
 LOCK = threading.Lock()
 PREV_IDLE = PREV_TOTAL = None
@@ -214,15 +215,13 @@ def launch(action):
 def refresh_config(server):
     """Pick up desktop-manager edits without restarting the web host."""
     config = normalize_profiles(load_config())
-    if config.get("token") != server.token:
-        # Token changes take effect only after restart so active sessions fail closed.
-        config["token"] = server.token
+    config.pop("token", None)
     server.config = config
     return config
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "DeckLink/0.1"
+    server_version = "DeckLink/0.1.3beta"
 
     def log_message(self, fmt, *args):
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
@@ -234,15 +233,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "null"); self.end_headers(); self.wfile.write(body)
 
     def authorized(self):
-        token = self.headers.get("X-DeckLink-Token", "")
-        return secrets.compare_digest(token, self.server.token)
+        pin = self.headers.get("X-DeckLink-PIN", "")
+        return secrets.compare_digest(pin, self.server.pin)
 
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/api/ping":
             return self.send_json(200, {"ok": True})
         if path.startswith("/api/") and not self.authorized():
-            return self.send_json(401, {"error": "Pair with your host token"})
+            return self.send_json(401, {"error": "Enter this PC's current six-digit PIN"})
         if path == "/api/info":
             config = refresh_config(self.server)
             actions = [{"id": x["id"], "label": x["label"], "icon": x.get("icon", "•")} for x in config.get("actions", [])]
@@ -252,7 +251,7 @@ class Handler(BaseHTTPRequestHandler):
                 for page in p["pages"]]} for p in config["profiles"]]
             return self.send_json(200, {"name": config.get("name", "DeckLink"), "actions": actions,
                 "profiles": profiles, "activeProfileId": config["activeProfileId"],
-                "host": socket.gethostname(), "hostId": host_id(), "version": "0.1.1"})
+                "host": socket.gethostname(), "hostId": host_id(), "version": "0.1.3beta"})
         if path == "/api/stats":
             return self.send_json(200, stats())
         if path == "/":
@@ -268,7 +267,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         if not self.authorized():
-            return self.send_json(401, {"error": "Pair with your host token"})
+            return self.send_json(401, {"error": "Enter this PC's current six-digit PIN"})
         if path not in ("/api/action", "/api/profile"):
             return self.send_json(404, {"error": "Not found"})
         try:
@@ -304,14 +303,15 @@ def main():
     parser.add_argument("--no-open", action="store_true", help="Do not open the dashboard on this PC")
     args = parser.parse_args()
     config = load_config()
-    token = config.get("token", "").strip() or secrets.token_urlsafe(24)
-    config["token"] = token
-    CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    config.pop("token", None)
+    pin = "%06d" % secrets.randbelow(1000000)
     server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    server.token, server.config = token, config
+    server.pin, server.config = pin, config
+    PIN_PATH.write_text(pin, encoding="ascii")
     PID_PATH.write_text(str(os.getpid()), encoding="ascii")
-    address = "http://%s:%d/?token=%s" % (local_ip(), args.port, token)
+    address = "http://%s:%d" % (local_ip(), args.port)
     print("DeckLink is ready: " + address, flush=True)
+    print("Current six-digit PIN: " + pin, flush=True)
     print("Open that address on your tablet while both devices are on the same Wi-Fi.", flush=True)
     print("Keep this window open. Press Ctrl+C to stop.", flush=True)
     if not args.no_open:
@@ -323,6 +323,11 @@ def main():
     finally:
         server.server_close()
         clear_pid_file()
+        try:
+            if PIN_PATH.read_text(encoding="ascii").strip() == pin:
+                PIN_PATH.unlink()
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

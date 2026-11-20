@@ -6,8 +6,8 @@ A lightweight PC dashboard for an Android phone or tablet on the same local netw
 ## Start on Windows
 
 1. Install Python 3.9 or newer.
-2. Double-click `manage.bat` to open the native desktop manager. Use **Start host** to run DeckLink and open the dashboard. The host window shows the tablet link and pairing token.
-3. On your tablet, connect to the same Wi-Fi and open the pairing link shown by the manager or host window. Allow Python through Windows Firewall on **Private networks** if prompted.
+2. Double-click `manage.bat` to open the native desktop manager. Use **Start host**. The manager shows the PC address and a fresh six-digit PIN.
+3. On your tablet, open the DeckLink page, enter the PC address and PIN, and connect. Both devices should be on the same Wi-Fi. Allow Python through Windows Firewall on **Private networks** if prompted.
 4. Leave the host running while using the dashboard. Stop it in the manager or press Ctrl+C in the host window.
 
 You can also double-click `start.bat` to run the host without the manager, or run `python host.py --no-open` / `python host.py --port 8765`.
@@ -30,17 +30,17 @@ URL buttons must use `http://` or `https://`. App buttons store a fixed executab
 
 ## Profiles, layouts, and appearance
 
-The desktop manager supports named shortcut profiles and JSON layout import/export. Export files contain shortcut layouts only and do not include the host pairing token. Import validates the layout and asks before replacing profiles. In the browser, use **Theme** and **Button size** to switch between dark/light and compact/large controls; those choices are saved on that device.
+The desktop manager supports named shortcut profiles and JSON layout import/export. Export files contain shortcut layouts only and do not include connection credentials. Import validates the layout and asks before replacing profiles. In the browser, choose among ten basic color themes and five glow/gradient themes, plus compact/large buttons; choices are saved on that device.
 
 The manager also has an opt-in **Start host when I sign in** setting on Windows. It adds only DeckLink's own current-user sign-in entry. Turn it off in the manager to remove it.
 
-The **Find a PC** control currently provides manual address and token entry for another DeckLink host. Automatic network discovery and multiple saved PC profiles are not implemented yet. The fullscreen Now Playing surface is reserved but remains hidden because no playback provider has been selected. GPU temperature is shown as unavailable because no supported sensor provider is configured; missing or zero readings are not presented as real temperatures.
+The **Find a PC** screen is available before connecting. Enter the PC address and current six-digit PIN shown in the desktop manager. The host generates a new PIN each time it starts. Automatic network discovery and multiple saved PC profiles are not implemented yet. The fullscreen Now Playing surface remains hidden because no playback provider has been selected. GPU temperature is shown as unavailable because no supported sensor provider is configured; missing or zero readings are not presented as real temperatures.
 
 If the host temporarily disconnects, the dashboard keeps its current layout and retries with a bounded delay. Shortcut requests are not queued while disconnected.
 
 ## Pairing and network notes
 
-The first host run creates a random token in `config.json`. Treat the pairing link as a password and use it only on a trusted private Wi-Fi network. This first version uses plain HTTP on the local network; do not forward its port to the public internet. Clear the token value in `config.json` and restart the host to rotate it.
+The host generates a new six-digit PIN every time it starts. Use it only on a trusted private Wi-Fi network. This first version uses plain HTTP on the local network; do not forward its port to the public internet. The PIN is temporary and replaces the previous saved token flow.
 
 If Windows Firewall blocks the tablet, allow Python on a private network or adjust the firewall for the chosen port. Guest Wi-Fi and client isolation can prevent devices from seeing each other.
 
